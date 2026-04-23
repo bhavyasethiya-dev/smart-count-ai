@@ -1,0 +1,12 @@
+{
+  "name": "SmartCount AI",
+  "description": "High-density AI vision system for automated object counting, inventory tracking, and visual analytics.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "AI-powered visual analysis",
+    "Real-time object tracking",
+    "Inventory history"
+  ]
+}

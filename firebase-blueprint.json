@@ -1,0 +1,40 @@
+{
+  "entities": {
+    "Scan": {
+      "title": "Detection Scan",
+      "description": "A record of an AI object detection session.",
+      "type": "object",
+      "properties": {
+        "timestamp": { "type": "string", "format": "date-time", "description": "When the scan occurred" },
+        "totalItems": { "type": "number", "description": "Total count of objects detected" },
+        "processingTime": { "type": "number", "description": "Processing time in ms" },
+        "model": { "type": "string", "description": "Model used for detection" },
+        "imageUrl": { "type": "string", "description": "URL of the scanned image" },
+        "items": { "type": "array", "description": "List of detected objects with confidence" },
+        "userId": { "type": "string", "description": "User who performed the scan" }
+      },
+      "required": ["timestamp", "totalItems", "imageUrl", "userId"]
+    },
+    "Settings": {
+      "title": "App Settings",
+      "description": "User preferences and system configuration.",
+      "type": "object",
+      "properties": {
+        "confidenceThreshold": { "type": "number", "description": "Minimum confidence for detection" },
+        "theme": { "type": "string", "enum": ["light", "dark"], "description": "UI visual theme" },
+        "modelName": { "type": "string", "description": "Default inference model" }
+      },
+      "required": ["confidenceThreshold", "theme"]
+    }
+  },
+  "firestore": {
+    "scans/{scanId}": {
+      "schema": "Scan",
+      "description": "History of all object detection scans."
+    },
+    "settings/{userId}": {
+      "schema": "Settings",
+      "description": "Per-user configuration settings."
+    }
+  }
+}
