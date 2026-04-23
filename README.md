@@ -48,8 +48,12 @@ SmartCount-AI/
 │── models/          # AI/ML models (optional)
 │── README.md
 ```
+---
 
-Vercel App URL : https://smart-count-ai.vercel.app/
+## 🌐Vercel App URL : 
+
+https://smart-count-ai.vercel.app/
+
 ---
 
 ## 🔄 How It Works
