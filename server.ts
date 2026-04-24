@@ -34,11 +34,6 @@ async function startServer() {
     }
   });
 
-  // API Check
-  app.get("/api/health", (req, res) => {
-    res.json({ status: "SmartCount AI Online", timestamp: new Date() });
-  });
-
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
