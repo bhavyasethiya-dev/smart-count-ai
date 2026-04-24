@@ -32,47 +32,65 @@ export async function detectObjects(imageBase64: string, threshold: number = 0.7
 
   try {
     const ai = getAI();
-    const response = await ai.models.generateContent({
-      model: "gemini-flash-latest",
-      contents: {
-        parts: [
-          {
-            text: `Object counting task: Analyze the image and return a JSON list of objects visible with confidence > ${threshold}. 
-            Follow this schema: { "totalItems": number, "items": [{ "className": string, "count": number, "confidence": number }] }`
+    let response;
+    let attempt = 0;
+    const maxRetries = 2;
+
+    while (attempt <= maxRetries) {
+      try {
+        response = await ai.models.generateContent({
+          model: "gemini-flash-latest",
+          contents: {
+            parts: [
+              {
+                text: `Count all objects with confidence > ${threshold}. 
+                JSON schema: { "totalItems": number, "items": [{ "className": string, "count": number, "confidence": number }] }`
+              },
+              {
+                inlineData: {
+                  mimeType: "image/jpeg",
+                  data: base64Data
+                }
+              }
+            ]
           },
-          {
-            inlineData: {
-              mimeType: "image/jpeg",
-              data: base64Data
-            }
-          }
-        ]
-      },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          required: ["totalItems", "items"],
-          properties: {
-            totalItems: { type: Type.INTEGER },
-            items: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                required: ["className", "count", "confidence"],
-                properties: {
-                  className: { type: Type.STRING },
-                  count: { type: Type.INTEGER },
-                  confidence: { type: Type.NUMBER }
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              required: ["totalItems", "items"],
+              properties: {
+                totalItems: { type: Type.INTEGER },
+                items: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    required: ["className", "count", "confidence"],
+                    properties: {
+                      className: { type: Type.STRING },
+                      count: { type: Type.INTEGER },
+                      confidence: { type: Type.NUMBER }
+                    }
+                  }
                 }
               }
             }
           }
+        });
+        break; // Success
+      } catch (err: any) {
+        // Retry on 503 (Service Unavailable)
+        if (err.message?.includes('503') && attempt < maxRetries) {
+          attempt++;
+          console.warn(`Model overloaded. Retry attempt ${attempt}...`);
+          await new Promise(r => setTimeout(r, 2000 * attempt));
+          continue;
         }
+        throw err;
       }
-    });
+    }
 
-    if (!response.text) {
+    if (!response || !response.text) {
       throw new Error("Empty AI response");
     }
 

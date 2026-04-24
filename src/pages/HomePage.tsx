@@ -110,8 +110,8 @@ export function HomePage() {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       
-      // Target a conservative resolution for faster AI processing (max 640px for mobile)
-      const maxDim = 640;
+      // Target a high-performance resolution for AI (max 512px)
+      const maxDim = 512;
       let width = video.videoWidth;
       let height = video.videoHeight;
       
@@ -196,7 +196,9 @@ export function HomePage() {
       } else if (errorStr.includes('Safety') || errorStr.includes('HARM')) {
         message = 'Safety filter: The image content was flagged by safety filters.';
       } else if (errorStr.includes('429') || errorStr.includes('Quota')) {
-        message = 'Rate limit: Too many requests or quota exceeded. Please wait a moment.';
+        message = 'Rate limit: Too many requests. Please wait 10-15 seconds.';
+      } else if (errorStr.includes('503') || errorStr.includes('overloaded')) {
+        message = 'Model Overloaded: The AI engine is busy. Retrying in a few seconds usually works.';
       } else {
         message = `System Error: ${errorStr.substring(0, 50)}...`;
       }
