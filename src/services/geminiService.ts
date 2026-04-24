@@ -39,12 +39,12 @@ export async function detectObjects(imageBase64: string, threshold: number = 0.7
     while (attempt <= maxRetries) {
       try {
         response = await ai.models.generateContent({
-          model: "gemini-1.5-flash-latest", // Using explicit version for stability
+          model: "gemini-1.5-flash", // Reverted to the most stable alias
           contents: {
             parts: [
               {
-                text: `Task: Count all objects with confidence > ${threshold}. 
-                Output valid JSON according to schema: { "totalItems": number, "items": [{ "className": string, "count": number, "confidence": number }] }`
+                text: `Task: Count distinct objects with confidence > ${threshold}. 
+                Output ONLY valid JSON: { "totalItems": number, "items": [{ "className": string, "count": number, "confidence": number }] }`
               },
               {
                 inlineData: {

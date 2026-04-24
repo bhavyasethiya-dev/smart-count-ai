@@ -212,6 +212,8 @@ export function HomePage() {
       } else if (errorStr.includes('429') || errorStr.includes('Quota')) {
         message = 'The AI engine is currently busy (Rate Limit). Please wait 30 seconds before trying again.';
         setCooldown(30); // Hard cooldown on 429
+      } else if (errorStr.includes('404')) {
+        message = 'Model Not Found: Your API Key may not have access to the requested model. Please check your Gemini settings.';
       } else if (errorStr.includes('503') || errorStr.includes('overloaded')) {
         message = 'Model Overloaded: The AI engine is busy. Retrying in a few seconds usually works.';
         setCooldown(10); // Medium cooldown on 503 if retries still failed
