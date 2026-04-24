@@ -39,12 +39,11 @@ export async function detectObjects(imageBase64: string, threshold: number = 0.7
     while (attempt <= maxRetries) {
       try {
         response = await ai.models.generateContent({
-          model: "gemini-flash-latest",
+          model: "gemini-3-flash-preview",
           contents: {
             parts: [
               {
-                text: `Task: Count distinct objects with confidence > ${threshold}. 
-                Output ONLY valid JSON: { "totalItems": number, "items": [{ "className": string, "count": number, "confidence": number }] }`
+                text: `Identify and count all distinct objects in this image. Return the results strictly as JSON matching this schema: { "totalItems": number, "items": [{ "className": string, "count": number, "confidence": number }] }. Use a confidence threshold of ${threshold}.`
               },
               {
                 inlineData: {
@@ -56,7 +55,6 @@ export async function detectObjects(imageBase64: string, threshold: number = 0.7
           },
           config: {
             responseMimeType: "application/json",
-            // Keep existing schema validation
             responseSchema: {
               type: Type.OBJECT,
               required: ["totalItems", "items"],
@@ -80,18 +78,16 @@ export async function detectObjects(imageBase64: string, threshold: number = 0.7
         });
         break; // Success
       } catch (err: any) {
-        const errorMsg = err.message || "";
-        // Retry on 503 (Overloaded) or 500 (Internal Error)
-        if ((errorMsg.includes('503') || errorMsg.includes('500')) && attempt < maxRetries) {
+        const errorMsg = err.message || String(err);
+        const isRetryable = errorMsg.includes('503') || errorMsg.includes('500') || errorMsg.includes('overloaded');
+        
+        if (isRetryable && attempt < maxRetries) {
           attempt++;
-          const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff: 2s, 4s, 8s
-          console.warn(`Model busy or internal error. Retrying in ${waitTime}ms... (Attempt ${attempt})`);
+          const waitTime = Math.pow(2, attempt) * 2000;
+          console.warn(`Transient error (503/500). Retrying in ${waitTime}ms... (Attempt ${attempt})`);
           await new Promise(r => setTimeout(r, waitTime));
           continue;
         }
-        
-        // If it's a 429, don't retry automatically in the service to save quota
-        // throwing it will be handled by the UI with a timer
         throw err;
       }
     }
@@ -104,7 +100,7 @@ export async function detectObjects(imageBase64: string, threshold: number = 0.7
     return {
       ...result,
       processingTime: Date.now() - start,
-      model: "Gemini Flash (Mobile-Optimized)"
+      model: "Gemini 1.5 Flash (Optimized)"
     };
   } catch (error: any) {
     console.error("Gemini Service Error:", error);
