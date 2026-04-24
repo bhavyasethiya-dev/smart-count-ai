@@ -184,15 +184,21 @@ export function HomePage() {
       // Navigate to results page with data
       navigate('/results', { state: { results, imageUrl: imageToProcess } });
     } catch (error: any) {
-      console.error("Detection Error:", error);
+      console.error("Detection Error Detail:", error);
       let message = 'Detection failed. Please try again.';
       
-      if (error?.message?.includes('fetch')) {
+      const errorStr = error?.message || String(error);
+      
+      if (errorStr.includes('fetch')) {
         message = 'Network error: Please check your internet connection or VPN.';
-      } else if (error?.message?.includes('API_KEY')) {
-        message = 'Authentication error: Please verify your Gemini API Key in Vercel settings.';
-      } else if (error?.message?.includes('Safety')) {
-        message = 'Safety filter: The image content triggered a security block. Please try a clearer angle.';
+      } else if (errorStr.includes('API_KEY') || errorStr.includes('401')) {
+        message = 'Authentication error: The Gemini API Key is missing or invalid.';
+      } else if (errorStr.includes('Safety') || errorStr.includes('HARM')) {
+        message = 'Safety filter: The image content was flagged by safety filters.';
+      } else if (errorStr.includes('429') || errorStr.includes('Quota')) {
+        message = 'Rate limit: Too many requests or quota exceeded. Please wait a moment.';
+      } else {
+        message = `System Error: ${errorStr.substring(0, 50)}...`;
       }
       
       alert(message);

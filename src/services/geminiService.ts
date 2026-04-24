@@ -1,7 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
 export interface DetectionResult {
   className: string;
   count: number;
@@ -15,79 +13,77 @@ export interface ScanResult {
   items: DetectionResult[];
 }
 
+let aiClient: GoogleGenAI | null = null;
+
+function getAI() {
+  if (!aiClient) {
+    aiClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  }
+  return aiClient;
+}
+
 export async function detectObjects(imageBase64: string, threshold: number = 0.75): Promise<ScanResult> {
   const start = Date.now();
-  let lastError: any = null;
-  const maxRetries = 2; // Increase retries for mobile stability
+  
+  // Clean base64 data
+  const base64Data = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
+  
+  console.log(`Sending image for detection (base64 length: ${base64Data.length})`);
 
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      // Use standard alias for maximum compatibility
-      const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash", 
-        contents: [{
-          parts: [
-            {
-              text: `Count all objects in this image with focus on precision. 
-              Required JSON schema: { "totalItems": number, "items": [{ "className": string, "count": number, "confidence": number }] }
-              Only include items with confidence > ${threshold}.`
-            },
-            {
-              inlineData: {
-                mimeType: "image/jpeg",
-                data: imageBase64.split(',')[1] || imageBase64
-              }
+  try {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: "gemini-flash-latest",
+      contents: {
+        parts: [
+          {
+            text: `Object counting task: Analyze the image and return a JSON list of objects visible with confidence > ${threshold}. 
+            Follow this schema: { "totalItems": number, "items": [{ "className": string, "count": number, "confidence": number }] }`
+          },
+          {
+            inlineData: {
+              mimeType: "image/jpeg",
+              data: base64Data
             }
-          ]
-        }],
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              totalItems: { type: Type.INTEGER },
+          }
+        ]
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          required: ["totalItems", "items"],
+          properties: {
+            totalItems: { type: Type.INTEGER },
+            items: {
+              type: Type.ARRAY,
               items: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    className: { type: Type.STRING },
-                    count: { type: Type.INTEGER },
-                    confidence: { type: Type.NUMBER }
-                  }
+                type: Type.OBJECT,
+                required: ["className", "count", "confidence"],
+                properties: {
+                  className: { type: Type.STRING },
+                  count: { type: Type.INTEGER },
+                  confidence: { type: Type.NUMBER }
                 }
               }
-            },
-            required: ["totalItems", "items"]
+            }
           }
         }
-      });
-
-      if (!response || !response.text) {
-        throw new Error("Empty response from AI engine");
       }
+    });
 
-      const duration = Date.now() - start;
-      const result = JSON.parse(response.text);
-
-      return {
-        ...result,
-        processingTime: duration,
-        model: "Gemini 1.5 Flash (Optimized)"
-      };
-    } catch (error: any) {
-      console.warn(`Detection attempt ${attempt + 1} failed:`, error.message || error);
-      lastError = error;
-      
-      // Exponential backoff for retries
-      if (attempt < maxRetries) {
-        const delay = Math.pow(2, attempt) * 500;
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
+    if (!response.text) {
+      throw new Error("Empty AI response");
     }
-  }
 
-  // If we get here, all retries failed
-  console.error("Critical failure in detection pipeline:", lastError);
-  throw lastError || new Error("Detection engine unavailable");
+    const result = JSON.parse(response.text);
+    return {
+      ...result,
+      processingTime: Date.now() - start,
+      model: "Gemini Flash (Mobile-Optimized)"
+    };
+  } catch (error: any) {
+    console.error("Gemini Service Error:", error);
+    throw error;
+  }
 }
