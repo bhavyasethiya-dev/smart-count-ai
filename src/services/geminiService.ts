@@ -39,7 +39,7 @@ export async function detectObjects(imageBase64: string, threshold: number = 0.7
     while (attempt <= maxRetries) {
       try {
         response = await ai.models.generateContent({
-          model: "gemini-1.5-flash", // Reverted to the most stable alias
+          model: "gemini-flash-latest",
           contents: {
             parts: [
               {
