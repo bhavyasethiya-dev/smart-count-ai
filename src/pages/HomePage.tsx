@@ -109,12 +109,32 @@ export function HomePage() {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      
+      // Target a conservative resolution for faster AI processing (max 768px)
+      const maxDim = 768;
+      let width = video.videoWidth;
+      let height = video.videoHeight;
+      
+      if (width > height) {
+        if (width > maxDim) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        }
+      } else {
+        if (height > maxDim) {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg');
+        // Draw the current video frame to the canvas
+        ctx.drawImage(video, 0, 0, width, height);
+        // Use lower quality jpeg (0.6) to significantly reduce payload size
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
         setPreviewImage(dataUrl);
         stopCamera();
       }
@@ -163,9 +183,19 @@ export function HomePage() {
       const results = await detectObjects(imageToProcess, confidence);
       // Navigate to results page with data
       navigate('/results', { state: { results, imageUrl: imageToProcess } });
-    } catch (error) {
-      console.error(error);
-      alert('Detection failed');
+    } catch (error: any) {
+      console.error("Detection Error:", error);
+      let message = 'Detection failed. Please try again.';
+      
+      if (error?.message?.includes('fetch')) {
+        message = 'Network error: Please check your internet connection or VPN.';
+      } else if (error?.message?.includes('API_KEY')) {
+        message = 'Authentication error: Please verify your Gemini API Key in Vercel settings.';
+      } else if (error?.message?.includes('Safety')) {
+        message = 'Safety filter: The image content triggered a security block. Please try a clearer angle.';
+      }
+      
+      alert(message);
     } finally {
       setIsProcessing(false);
     }
