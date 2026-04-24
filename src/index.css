@@ -10,6 +10,8 @@
   --color-accent-cyan: #22d3ee;
   --color-accent-blue: #3b82f6;
   --color-bg-dark: #020617;
+  
+  --animate-spin-slow: spin 3s linear infinite;
 }
 
 @layer utilities {

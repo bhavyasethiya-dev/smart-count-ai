@@ -34,17 +34,17 @@ export async function detectObjects(imageBase64: string, threshold: number = 0.7
     const ai = getAI();
     let response;
     let attempt = 0;
-    const maxRetries = 2;
+    const maxRetries = 3;
 
     while (attempt <= maxRetries) {
       try {
         response = await ai.models.generateContent({
-          model: "gemini-flash-latest",
+          model: "gemini-1.5-flash-latest", // Using explicit version for stability
           contents: {
             parts: [
               {
-                text: `Count all objects with confidence > ${threshold}. 
-                JSON schema: { "totalItems": number, "items": [{ "className": string, "count": number, "confidence": number }] }`
+                text: `Task: Count all objects with confidence > ${threshold}. 
+                Output valid JSON according to schema: { "totalItems": number, "items": [{ "className": string, "count": number, "confidence": number }] }`
               },
               {
                 inlineData: {
@@ -56,6 +56,7 @@ export async function detectObjects(imageBase64: string, threshold: number = 0.7
           },
           config: {
             responseMimeType: "application/json",
+            // Keep existing schema validation
             responseSchema: {
               type: Type.OBJECT,
               required: ["totalItems", "items"],
@@ -79,13 +80,18 @@ export async function detectObjects(imageBase64: string, threshold: number = 0.7
         });
         break; // Success
       } catch (err: any) {
-        // Retry on 503 (Service Unavailable)
-        if (err.message?.includes('503') && attempt < maxRetries) {
+        const errorMsg = err.message || "";
+        // Retry on 503 (Overloaded) or 500 (Internal Error)
+        if ((errorMsg.includes('503') || errorMsg.includes('500')) && attempt < maxRetries) {
           attempt++;
-          console.warn(`Model overloaded. Retry attempt ${attempt}...`);
-          await new Promise(r => setTimeout(r, 2000 * attempt));
+          const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff: 2s, 4s, 8s
+          console.warn(`Model busy or internal error. Retrying in ${waitTime}ms... (Attempt ${attempt})`);
+          await new Promise(r => setTimeout(r, waitTime));
           continue;
         }
+        
+        // If it's a 429, don't retry automatically in the service to save quota
+        // throwing it will be handled by the UI with a timer
         throw err;
       }
     }
