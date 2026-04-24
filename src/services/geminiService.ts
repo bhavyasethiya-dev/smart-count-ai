@@ -17,7 +17,11 @@ let aiClient: GoogleGenAI | null = null;
 
 function getAI() {
   if (!aiClient) {
-    aiClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("API_KEY_MISSING: GEMINI_API_KEY is not set. Please add it to your Vercel environment variables and redeploy.");
+    }
+    aiClient = new GoogleGenAI({ apiKey });
   }
   return aiClient;
 }
