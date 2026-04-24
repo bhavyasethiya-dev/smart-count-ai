@@ -110,8 +110,8 @@ export function HomePage() {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       
-      // Target a conservative resolution for faster AI processing (max 768px)
-      const maxDim = 768;
+      // Target a conservative resolution for faster AI processing (max 640px for mobile)
+      const maxDim = 640;
       let width = video.videoWidth;
       let height = video.videoHeight;
       
@@ -133,8 +133,8 @@ export function HomePage() {
       if (ctx) {
         // Draw the current video frame to the canvas
         ctx.drawImage(video, 0, 0, width, height);
-        // Use lower quality jpeg (0.6) to significantly reduce payload size
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+        // Use lower quality jpeg (0.5) to significantly reduce payload size for mobile
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
         setPreviewImage(dataUrl);
         stopCamera();
       }

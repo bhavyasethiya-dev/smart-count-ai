@@ -18,16 +18,19 @@ export interface ScanResult {
 export async function detectObjects(imageBase64: string, threshold: number = 0.75): Promise<ScanResult> {
   const start = Date.now();
   let lastError: any = null;
-  const maxRetries = 1;
+  const maxRetries = 2; // Increase retries for mobile stability
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
+      // Use standard alias for maximum compatibility
       const response = await ai.models.generateContent({
-        model: "gemini-flash-latest",
+        model: "gemini-1.5-flash", 
         contents: [{
           parts: [
             {
-              text: `Count objects above ${threshold} confidence. Output JSON: {totalItems: number, items: [{className: string, count: number, confidence: number}]}`
+              text: `Count all objects in this image with focus on precision. 
+              Required JSON schema: { "totalItems": number, "items": [{ "className": string, "count": number, "confidence": number }] }
+              Only include items with confidence > ${threshold}.`
             },
             {
               inlineData: {
@@ -60,25 +63,31 @@ export async function detectObjects(imageBase64: string, threshold: number = 0.7
         }
       });
 
+      if (!response || !response.text) {
+        throw new Error("Empty response from AI engine");
+      }
+
       const duration = Date.now() - start;
       const result = JSON.parse(response.text);
 
       return {
         ...result,
         processingTime: duration,
-        model: "Gemini Flash (Live)"
+        model: "Gemini 1.5 Flash (Optimized)"
       };
-    } catch (error) {
-      console.warn(`Detection attempt ${attempt + 1} failed:`, error);
+    } catch (error: any) {
+      console.warn(`Detection attempt ${attempt + 1} failed:`, error.message || error);
       lastError = error;
-      // Minimal wait for faster recovery
+      
+      // Exponential backoff for retries
       if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        const delay = Math.pow(2, attempt) * 500;
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
   }
 
   // If we get here, all retries failed
-  console.error("All detection attempts failed:", lastError);
-  throw lastError || new Error("Detection failed");
+  console.error("Critical failure in detection pipeline:", lastError);
+  throw lastError || new Error("Detection engine unavailable");
 }
