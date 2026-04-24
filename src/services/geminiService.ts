@@ -17,11 +17,7 @@ let aiClient: GoogleGenAI | null = null;
 
 function getAI() {
   if (!aiClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error("API_KEY_MISSING: GEMINI_API_KEY is not set. Please add it to your Vercel environment variables and redeploy.");
-    }
-    aiClient = new GoogleGenAI({ apiKey });
+    aiClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   }
   return aiClient;
 }
@@ -37,11 +33,11 @@ export async function detectObjects(imageBase64: string, threshold: number = 0.7
       const base64Data = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-flash-latest",
         contents: {
           parts: [
             {
-              text: `Detect and count distinct physical objects in this image. Results should be strictly structured as JSON. Use confidence threshold: ${threshold}.`
+              text: "Return strictly as JSON: { \"totalItems\": number, \"items\": [{ \"className\": string, \"count\": number, \"confidence\": number }] }. Identify and count distinct objects in this image."
             },
             {
               inlineData: {
@@ -76,7 +72,7 @@ export async function detectObjects(imageBase64: string, threshold: number = 0.7
       });
 
       if (!response || !response.text) {
-        throw new Error("Neural Engine Error: Empty response received.");
+        throw new Error("Neural Engine Error: AI returned an empty response.");
       }
 
       const result = JSON.parse(response.text);
@@ -84,21 +80,30 @@ export async function detectObjects(imageBase64: string, threshold: number = 0.7
       return {
         ...result,
         processingTime: Date.now() - start,
-        model: "Gemini 3 Flash (Real-time Vision)"
+        model: "Gemini Flash (Global Cluster)"
       };
     } catch (error: any) {
       const errorMsg = error?.message || String(error);
-      const isRetryable = errorMsg.includes('429') || errorMsg.includes('Quota') || errorMsg.includes('503') || errorMsg.includes('overloaded');
+      const statusCode = error?.status || 0;
       
-      if (isRetryable && attempt < maxRetries) {
+      // Handle Rate Limits (429) and Overload (503)
+      if ((statusCode === 429 || statusCode === 503 || errorMsg.includes('Quota')) && attempt < maxRetries) {
         attempt++;
-        const waitTime = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
-        console.warn(`Transient busy signal detected. Automatic retry ${attempt}/${maxRetries} in ${waitTime}ms...`);
+        const waitTime = attempt * 3000; // Progressive: 3s, 6s, 9s
+        console.warn(`[AI Engine Busy] Status ${statusCode}. Retrying ${attempt}/${maxRetries} in ${waitTime}ms...`);
         await new Promise(r => setTimeout(r, waitTime));
         continue;
       }
+
+      // Handle Invalid Model (404) or API Key (400)
+      if (statusCode === 404) {
+        throw new Error("Cloud Config Error: Model not found. This usually happens if the project settings are proprietary or the model name is restricted.");
+      }
+      if (statusCode === 400 || errorMsg.includes('key not valid')) {
+        throw new Error("Security Error: API key is invalid or unauthorized. Please verify your credentials in AI Studio settings.");
+      }
       
-      console.error("Detection Error (Terminal):", error);
+      console.error("Critical System Error:", error);
       throw error;
     }
   }
