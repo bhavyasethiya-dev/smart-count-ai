@@ -9,7 +9,6 @@ export function HomePage() {
   const [imageUrl, setImageUrl] = useState('');
   const [confidence, setConfidence] = useState(0.85);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [cooldown, setCooldown] = useState(0);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isCameraLoading, setIsCameraLoading] = useState(false);
@@ -154,19 +153,8 @@ export function HomePage() {
     }
   };
 
-  // Handle cooldown timer
-  useEffect(() => {
-    let timer: any;
-    if (cooldown > 0) {
-      timer = setInterval(() => {
-        setCooldown(prev => prev - 1);
-      }, 1000);
-    }
-    return () => clearInterval(timer);
-  }, [cooldown]);
-
   const handleRunDetection = async () => {
-    if (!previewImage || isProcessing || cooldown > 0) return;
+    if (!previewImage || isProcessing) return;
     setIsProcessing(true);
     try {
       let imageToProcess = previewImage;
@@ -193,8 +181,6 @@ export function HomePage() {
       }
 
       const results = await detectObjects(imageToProcess, confidence);
-      // Success: small cooldown to prevent double scans
-      setCooldown(3);
       // Navigate to results page with data
       navigate('/results', { state: { results, imageUrl: imageToProcess } });
     } catch (error: any) {
@@ -210,13 +196,11 @@ export function HomePage() {
       } else if (errorStr.includes('Safety') || errorStr.includes('HARM')) {
         message = 'Safety filter: The image content was flagged by safety filters.';
       } else if (errorStr.includes('429') || errorStr.includes('Quota')) {
-        message = 'The AI engine is currently busy (Rate Limit). Please wait 30 seconds before trying again.';
-        setCooldown(30); // Hard cooldown on 429
+        message = 'The AI engine is currently busy (Rate Limit). Please wait a moment before trying again.';
       } else if (errorStr.includes('404')) {
-        message = 'Model Not Found: Your API Key may not have access to the requested model. Please check your Gemini settings.';
+        message = 'Model Not Found: Please check your Gemini settings or API key permissions.';
       } else if (errorStr.includes('503') || errorStr.includes('overloaded')) {
         message = 'Model Overloaded: The AI engine is busy. Retrying in a few seconds usually works.';
-        setCooldown(10); // Medium cooldown on 503 if retries still failed
       } else {
         message = `System Error: ${errorStr.substring(0, 50)}...`;
       }
@@ -342,26 +326,22 @@ export function HomePage() {
             <div className="pt-10 mt-auto">
               <button 
                 onClick={handleRunDetection}
-                disabled={!previewImage || isProcessing || cooldown > 0}
+                disabled={!previewImage || isProcessing}
                 className={cn(
                   "w-full py-6 rounded-xl font-bold text-lg uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/10",
-                  (!previewImage || isProcessing || cooldown > 0)
+                  (!previewImage || isProcessing)
                     ? "bg-white/5 text-slate-600 cursor-not-allowed border border-white/5" 
                     : "bg-accent-cyan text-bg-dark hover:bg-white transition-colors active:scale-95"
                 )}
               >
                 {isProcessing ? (
                    <span className="animate-spin rounded-full h-5 w-5 border-2 border-bg-dark/20 border-t-bg-dark"></span>
-                ) : cooldown > 0 ? (
-                  <RefreshCw className="w-5 h-5 animate-spin-slow" />
                 ) : (
                   <Play className="w-5 h-5 fill-current" />
                 )}
                 {isProcessing 
                   ? 'CALCULATING...' 
-                  : cooldown > 0 
-                    ? `READY IN ${cooldown}s` 
-                    : 'EXECUTE SCAN'}
+                  : 'EXECUTE SCAN'}
               </button>
             </div>
           </div>
