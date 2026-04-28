@@ -59,6 +59,10 @@ export const login = async () => {
   try {
     return await signInWithPopup(auth, googleProvider);
   } catch (error: any) {
+    if (error.code === 'auth/popup-closed-by-user') {
+      console.log("User closed the login popup.");
+      return;
+    }
     console.error("Auth Login Error:", error);
     if (error.code === 'auth/internal-error') {
       alert("Firebase Login Error: Internal authentication failure. This often happens if the 'Authorized Domains' are not configured in your Firebase Console for this environment or if your browser is blocking 3rd-party cookies. Please try opening the app in a new tab.");
