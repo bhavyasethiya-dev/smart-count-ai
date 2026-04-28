@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Download, Code, CheckCircle, User, Car, Package, ChevronRight, RefreshCw } from 'lucide-react';
-import { db, auth } from '../lib/firebase';
+import { db, auth, OperationType, handleFirestoreError } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useEffect } from 'react';
 import { motion } from 'motion/react';
@@ -27,7 +27,7 @@ export function ResultsPage() {
             timestamp: serverTimestamp()
           });
         } catch (e) {
-          console.error("Error saving scan:", e);
+          handleFirestoreError(e, OperationType.CREATE, 'scans');
         }
       }
     };

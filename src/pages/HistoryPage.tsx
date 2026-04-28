@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Search, Filter, Calendar, CheckSquare, Layers, History as HistoryIcon } from 'lucide-react';
 import { motion } from 'motion/react';
-import { db, auth, login } from '../lib/firebase';
+import { db, auth, login, OperationType, handleFirestoreError } from '../lib/firebase';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 
 export function HistoryPage() {
@@ -24,6 +24,9 @@ export function HistoryPage() {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setScans(data);
       setLoading(false);
+    }, (error) => {
+      setLoading(false);
+      handleFirestoreError(error, OperationType.GET, 'scans');
     });
 
     return () => unsubscribe();
